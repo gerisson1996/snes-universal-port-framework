@@ -630,15 +630,41 @@ static void draw_char(int x, int y, char c, uint16_t col, int scale) {
 
 static void draw_text(int x, int y, const char* str, uint16_t col, int scale) {
     int cur_x = x;
-    while (*str) {
-        if (*str == '\n') {
+    const unsigned char* p = (const unsigned char*)str;
+    while (*p) {
+        if (*p == '\n') {
             cur_x = x;
             y += 9 * scale;
-        } else {
-            draw_char(cur_x, y, *str, col, scale);
-            cur_x += 8 * scale;
+            p++;
+            continue;
         }
-        str++;
+
+        char c = (char)*p;
+        // Handle UTF-8 2-byte sequences for Portuguese accents
+        if (*p == 0xC3 && *(p + 1)) {
+            unsigned char c2 = *(p + 1);
+            p += 2;
+            switch (c2) {
+                case 0xA1: case 0xA0: case 0xA2: case 0xA3: c = 'a'; break; // á, à, â, ã
+                case 0x81: case 0x80: case 0x82: case 0x83: c = 'A'; break; // Á, À, Â, Ã
+                case 0xA9: case 0xAA: c = 'e'; break;                       // é, ê
+                case 0x89: case 0x8A: c = 'E'; break;                       // É, Ê
+                case 0xAD: c = 'i'; break;                                 // í
+                case 0x8D: c = 'I'; break;                                 // Í
+                case 0xB3: case 0xB4: case 0xB5: c = 'o'; break;           // ó, ô, õ
+                case 0x93: case 0x94: case 0x95: c = 'O'; break;           // Ó, Ô, Õ
+                case 0xBA: c = 'u'; break;                                 // ú
+                case 0x9A: c = 'U'; break;                                 // Ú
+                case 0xA7: c = 'c'; break;                                 // ç
+                case 0x87: c = 'C'; break;                                 // Ç
+                default: c = '?'; break;
+            }
+        } else {
+            p++;
+        }
+
+        draw_char(cur_x, y, c, col, scale);
+        cur_x += 8 * scale;
     }
 }
 
