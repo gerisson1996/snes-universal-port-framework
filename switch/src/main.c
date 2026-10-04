@@ -712,17 +712,17 @@ static void render_menu(u32* fb, u32 stride) {
         };
 
         for (int i = 0; i < 3; i++) {
-            int y = 270 + i * 46;
+            int y = 275 + i * 48;
             u32 color = (g_menu_selection == i) ? 0xFF00FF55 : 0xFFFFFFFF;
-            int scale = (g_menu_selection == i) ? 3 : 2;
+            int scale = 3;
 
             if (g_menu_selection == i) {
-                draw_text(fb, stride, 305, y, ">", 0xFF00FF55, scale);
+                draw_text(fb, stride, 300, y, ">", 0xFF00FF55, scale);
             }
-            draw_text(fb, stride, 345, y, options[i], color, scale);
+            draw_text(fb, stride, 340, y, options[i], color, scale);
         }
 
-        draw_text(fb, stride, 520, 420, "IP DO HOST:", 0xFF00D7FF, 2);
+        draw_text(fb, stride, 530, 430, "IP DO HOST:", 0xFF00D7FF, 2);
 
         int start_x = 440;
         for (int o = 0; o < 4; o++) {
@@ -733,17 +733,17 @@ static void render_menu(u32* fb, u32 stride) {
             u32 oct_color = is_active ? 0xFF00FF00 : ((g_menu_selection == 2) ? 0xFFFFFFFF : 0xFFCCCCCC);
 
             if (is_active) {
-                draw_text(fb, stride, start_x - 14, 450, "[", 0xFF00FF00, 3);
+                draw_text(fb, stride, start_x - 14, 465, "[", 0xFF00FF00, 3);
             }
-            draw_text(fb, stride, start_x, 450, oct_str, oct_color, 3);
+            draw_text(fb, stride, start_x, 465, oct_str, oct_color, 3);
             int len = strlen(oct_str);
             if (is_active) {
-                draw_text(fb, stride, start_x + len * 24, 450, "]", 0xFF00FF00, 3);
+                draw_text(fb, stride, start_x + len * 24, 465, "]", 0xFF00FF00, 3);
             }
 
             start_x += (len * 24) + 16;
             if (o < 3) {
-                draw_text(fb, stride, start_x, 450, ".", 0xFF888888, 3);
+                draw_text(fb, stride, start_x, 465, ".", 0xFF888888, 3);
                 start_x += 20;
             }
         }
@@ -751,11 +751,8 @@ static void render_menu(u32* fb, u32 stride) {
         if (g_auto_discovered) {
             char disco_buf[128];
             snprintf(disco_buf, sizeof(disco_buf), "HOST DETECTADO: %s", g_discovered_host_ip);
-            draw_text(fb, stride, 430, 495, disco_buf, 0xFF00FF55, 2);
+            draw_text(fb, stride, 430, 510, disco_buf, 0xFF00FF55, 2);
         }
-
-        // Footer Help Bar (Y: 600)
-        draw_text(fb, stride, 380, 600, "+ NAVEGAR    (A) SELECIONAR    (B) VOLTAR", 0xFF00D7FF, 2);
     } 
     else if (g_app_state == APP_STATE_SEARCHING) {
         const char* spinners[] = { "|", "/", "-", "\\" };

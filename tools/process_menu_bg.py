@@ -1,6 +1,5 @@
 import zlib
 import struct
-import math
 
 def decode_png(filename):
     with open(filename, 'rb') as f:
@@ -21,7 +20,7 @@ def decode_png(filename):
     decompressed = zlib.decompress(b"".join(idat))
     bytes_per_pixel = 3 if colort == 2 else 4
     stride = w * bytes_per_pixel
-    raw_pixels = bytearray(w * h * 3)
+    raw_pixels = bytearray(w * h * bytes_per_pixel)
 
     decomp_pos = 0
     prev_row = bytearray(stride)
@@ -61,83 +60,13 @@ def decode_png(filename):
                 else: pr = c
                 curr_row[x] = (raw_row[x] + pr) & 0xFF
 
-        # Copy RGB to raw_pixels
-        out_idx = y * w * 3
-        for x in range(w):
-            in_idx = x * bytes_per_pixel
-            raw_pixels[out_idx + x * 3] = curr_row[in_idx]
-            raw_pixels[out_idx + x * 3 + 1] = curr_row[in_idx + 1]
-            raw_pixels[out_idx + x * 3 + 2] = curr_row[in_idx + 2]
-
+        out_idx = y * stride
+        raw_pixels[out_idx:out_idx + stride] = curr_row
         prev_row[:] = curr_row
 
-    return w, h, raw_pixels
+    return w, h, colort, raw_pixels
 
-def clean_and_rescale(w, h, pixels, target_w, target_h):
-    # Completely clear the ENTIRE interior of the main cyberpunk metallic box (325 to 1345, 318 to 682)
-    # Using the exact matching blue/navy gradient
-    for y in range(315, 685):
-        factor = math.sin((y - 315) / (685 - 315) * math.pi)
-        g_val = int(18 + 14 * factor)
-        b_val = int(50 + 45 * factor)
-        for x in range(325, 1345):
-            idx = (y * w + x) * 3
-            pixels[idx] = 1
-            pixels[idx + 1] = g_val
-            pixels[idx + 2] = b_val
-
-    # Completely clear the upper footer pill (755 to 868)
-    for y in range(755, 868):
-        for x in range(315, 1355):
-            idx = (y * w + x) * 3
-            pixels[idx] = 0
-            pixels[idx + 1] = 6
-            pixels[idx + 2] = 20
-
-    # Bilinear rescale to target_w x target_h
-    out_rgb565 = bytearray(target_w * target_h * 2)
-    out_rgba8888 = bytearray(target_w * target_h * 4)
-
-    for ty in range(target_h):
-        sy = ty * (h - 1) / max(1, target_h - 1)
-        iy = int(sy)
-        fy = sy - iy
-        iy_next = min(h - 1, iy + 1)
-
-        for tx in range(target_w):
-            sx = tx * (w - 1) / max(1, target_w - 1)
-            ix = int(sx)
-            fx = sx - ix
-            ix_next = min(w - 1, ix + 1)
-
-            # Sample 4 pixels
-            idx00 = (iy * w + ix) * 3
-            idx10 = (iy * w + ix_next) * 3
-            idx01 = (iy_next * w + ix) * 3
-            idx11 = (iy_next * w + ix_next) * 3
-
-            r = int((pixels[idx00] * (1 - fx) + pixels[idx10] * fx) * (1 - fy) + (pixels[idx01] * (1 - fx) + pixels[idx11] * fx) * fy)
-            g = int((pixels[idx00+1] * (1 - fx) + pixels[idx10+1] * fx) * (1 - fy) + (pixels[idx01+1] * (1 - fx) + pixels[idx11+1] * fx) * fy)
-            b = int((pixels[idx00+2] * (1 - fx) + pixels[idx10+2] * fx) * (1 - fy) + (pixels[idx01+2] * (1 - fx) + pixels[idx11+2] * fx) * fy)
-
-            # RGBA8888 for Switch
-            out_rgba_idx = (ty * target_w + tx) * 4
-            out_rgba8888[out_rgba_idx] = r
-            out_rgba8888[out_rgba_idx + 1] = g
-            out_rgba8888[out_rgba_idx + 2] = b
-            out_rgba8888[out_rgba_idx + 3] = 255
-
-            # RGB565 for Android
-            c565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
-            out_565_idx = (ty * target_w + tx) * 2
-            out_rgb565[out_565_idx] = c565 & 0xFF
-            out_rgb565[out_565_idx + 1] = (c565 >> 8) & 0xFF
-
-    return out_rgba8888, out_rgb565
-
-def rle_compress_16(data):
-    # data is bytes (uint16_t array)
-    words = struct.unpack(f"<{len(data)//2}H", data)
+def rle_compress_16(words):
     out = []
     i = 0
     n = len(words)
@@ -149,15 +78,12 @@ def rle_compress_16(data):
         out.append((run, val))
         i += run
     
-    # Pack as (uint16_t count, uint16_t val)
     packed = bytearray()
     for count, val in out:
         packed.extend(struct.pack("<HH", count, val))
     return packed
 
-def rle_compress_32(data):
-    # data is bytes (uint32_t array)
-    words = struct.unpack(f"<{len(data)//4}I", data)
+def rle_compress_32(words):
     out = []
     i = 0
     n = len(words)
@@ -175,15 +101,24 @@ def rle_compress_32(data):
     return packed
 
 def main():
-    img_path = r"C:\Users\geris\OneDrive\Área de Trabalho\Menu Espacial dos Power Rangers.png"
-    print("Decoding PNG image:", img_path)
-    w, h, pixels = decode_png(img_path)
-    print(f"Decoded: {w}x{h}")
-
-    # Generate Switch Background (1280x720 RGBA8888 -> RLE compressed)
-    print("Processing 1280x720 for Switch...")
-    rgba_switch, _ = clean_and_rescale(w, h, bytearray(pixels), 1280, 720)
-    rle_switch = rle_compress_32(rgba_switch)
+    # 1. Switch 1280x720 RGBA8888
+    print("Reading switch_bg.png...")
+    sw_w, sw_h, sw_colort, sw_raw = decode_png("switch_bg.png")
+    print(f"Switch PNG: {sw_w}x{sw_h}, colort={sw_colort}")
+    bpp = 3 if sw_colort == 2 else 4
+    
+    sw_words = []
+    for y in range(sw_h):
+        for x in range(sw_w):
+            idx = (y * sw_w + x) * bpp
+            r = sw_raw[idx]
+            g = sw_raw[idx + 1]
+            b = sw_raw[idx + 2]
+            rgba = (0xFF << 24) | (b << 16) | (g << 8) | r
+            sw_words.append(rgba)
+            
+    rle_switch = rle_compress_32(sw_words)
+    print(f"Switch RLE size: {len(rle_switch)} bytes")
 
     with open("switch/src/menu_bg_data.h", "w") as f:
         f.write("/* Auto-generated Power Rangers Space Menu Background (1280x720 RGBA8888 RLE) */\n")
@@ -205,10 +140,24 @@ def main():
         f.write("    }\n")
         f.write("}\n")
 
-    # Generate Android Background (960x448 RGB565 -> RLE compressed)
-    print("Processing 960x448 for Android...")
-    _, rgb565_android = clean_and_rescale(w, h, bytearray(pixels), 960, 448)
-    rle_android = rle_compress_16(rgb565_android)
+    # 2. Android 960x448 RGB565
+    print("Reading android_bg.png...")
+    and_w, and_h, and_colort, and_raw = decode_png("android_bg.png")
+    print(f"Android PNG: {and_w}x{and_h}, colort={and_colort}")
+    bpp_and = 3 if and_colort == 2 else 4
+
+    and_words = []
+    for y in range(and_h):
+        for x in range(and_w):
+            idx = (y * and_w + x) * bpp_and
+            r = and_raw[idx]
+            g = and_raw[idx + 1]
+            b = and_raw[idx + 2]
+            c565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
+            and_words.append(c565)
+
+    rle_android = rle_compress_16(and_words)
+    print(f"Android RLE size: {len(rle_android)} bytes")
 
     with open("android_native/src/menu_bg_data.h", "w") as f:
         f.write("/* Auto-generated Power Rangers Space Menu Background (960x448 RGB565 RLE) */\n")
@@ -230,7 +179,7 @@ def main():
         f.write("    }\n")
         f.write("}\n")
 
-    print("[OK] Background headers generated successfully with RLE!")
+    print("[OK] Both RLE background headers generated from the clean image!")
 
 if __name__ == "__main__":
     main()
