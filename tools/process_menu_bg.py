@@ -74,38 +74,25 @@ def decode_png(filename):
     return w, h, raw_pixels
 
 def clean_and_rescale(w, h, pixels, target_w, target_h):
-    # The center menu box in the 1672x941 image is roughly:
-    # X: 340 to 1330 (20% to 80%)
-    # Y: 320 to 670  (34% to 71%)
-    # Footer box:
-    # X: 350 to 1320 (21% to 79%)
-    # Y: 770 to 860  (82% to 91%)
-
-    # Let's clean the scrambled text inside the box by filling with the dark navy background color
-    box_x0 = int(w * 0.22)
-    box_x1 = int(w * 0.78)
-    box_y0 = int(h * 0.35)
-    box_y1 = int(h * 0.70)
-
-    foot_x0 = int(w * 0.22)
-    foot_x1 = int(w * 0.78)
-    foot_y0 = int(h * 0.82)
-    foot_y1 = int(h * 0.90)
-
-    # Base background color for the inside of the frame: very dark blue (#040a16)
-    for y in range(box_y0, box_y1):
-        for x in range(box_x0, box_x1):
+    # Completely clear the ENTIRE interior of the main cyberpunk metallic box (325 to 1345, 318 to 682)
+    # Using the exact matching blue/navy gradient
+    for y in range(315, 685):
+        factor = math.sin((y - 315) / (685 - 315) * math.pi)
+        g_val = int(18 + 14 * factor)
+        b_val = int(50 + 45 * factor)
+        for x in range(325, 1345):
             idx = (y * w + x) * 3
-            pixels[idx] = 4      # R
-            pixels[idx + 1] = 10  # G
-            pixels[idx + 2] = 24  # B
+            pixels[idx] = 1
+            pixels[idx + 1] = g_val
+            pixels[idx + 2] = b_val
 
-    for y in range(foot_y0, foot_y1):
-        for x in range(foot_x0, foot_x1):
+    # Completely clear the upper footer pill (755 to 868)
+    for y in range(755, 868):
+        for x in range(315, 1355):
             idx = (y * w + x) * 3
-            pixels[idx] = 2      # R
-            pixels[idx + 1] = 6   # G
-            pixels[idx + 2] = 16  # B
+            pixels[idx] = 0
+            pixels[idx + 1] = 6
+            pixels[idx + 2] = 20
 
     # Bilinear rescale to target_w x target_h
     out_rgb565 = bytearray(target_w * target_h * 2)
