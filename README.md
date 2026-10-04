@@ -1,6 +1,6 @@
 # ⚡ Universal SNES Porting Framework & MMPR: The Movie (Nintendo Switch & Native Android)
 
-Framework universal de porte, recompilação e embutimento nativo de jogos de Super Nintendo (SNES) para **Nintendo Switch (`.nro`)** e **Android Nativo (`.apk`)**, com suporte a **Cross-Play Online Netplay UDP**, **Tela Cheia 16:9**, áudio de baixa latência e **Modo Co-Op 3P/4P**.
+Framework universal de porte, recompilação e embutimento nativo de jogos de Super Nintendo (SNES) para **Nintendo Switch (`.nro`)** e **Android Nativo (`.apk`)**, com suporte a **Cross-Play Online Netplay UDP**, **Tela Cheia 16:9** e áudio de baixa latência.
 
 ---
 
@@ -16,7 +16,7 @@ Framework universal de porte, recompilação e embutimento nativo de jogos de Su
   - Binário compilado nativamente para `arm64-v8a`, `armeabi-v7a` e `x86_64` via Android NDK Clang.
   - `NativeActivity` (sem dependência de WebViews ou wrappers lentos).
   - Áudio de ultra-baixa latência via **AAudio** (48 kHz).
-  - Controles por toque na tela (Multi-touch) + Suporte a múltiplos Gamepads Bluetooth/USB.
+  - Controles por toque na tela (Multi-touch) + Suporte a controles Bluetooth/USB.
   - Tela cheia 16:9 Widescreen por padrão com botão de alternância para 4:3.
 
 - 🌐 **Cross-Play Online Netplay (UDP Porta 5555)**:
@@ -24,10 +24,6 @@ Framework universal de porte, recompilação e embutimento nativo de jogos de Su
   - Auto-descoberta na rede local Wi-Fi via Broadcast UDP.
   - Conexão direta pela internet digitando o IP do Host (sem VPN/Hamachi).
   - Sincronização a 60 FPS com buffer dinâmico de comandos.
-
-- 👥 **Suporte a 3 e 4 Jogadores (Co-Pilot & Tag-Team Assist)**:
-  - Suporte a 4 controles físicos conectados simultaneamente.
-  - O Player 3 e 4 podem alternar o controle dos Rangers ou ajudar com golpes especiais e combos em tempo real.
 
 ---
 
