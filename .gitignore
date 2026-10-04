@@ -1,0 +1,32 @@
+# Build outputs
+build/
+*.nro
+*.nacp
+*.elf
+*.apk
+*.ids
+*.so
+*.o
+*.a
+*.dex
+
+# Old webview prototype folders
+android/
+apk_src/
+
+# Large Archives & Downloaded SDKs
+cmdline-tools.zip
+android_sdk/
+.gradle/
+
+# Saves and local config
+*.srm
+*.sav
+*.ini
+
+# Temporary files
+scratch/
+*.pyc
+__pycache__/
+.DS_Store
+Thumbs.db
