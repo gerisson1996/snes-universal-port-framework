@@ -10,9 +10,21 @@
 #include "libretro.h"
 #include "embedded_rom.h"
 
+#include "menu_bg_data.h"
+
 #define SCREEN_W 1280
 #define SCREEN_H 720
 #define NETPLAY_PORT 5555
+
+static u32 g_menu_bg[1280 * 720];
+static bool g_menu_bg_loaded = false;
+
+static void init_menu_bg() {
+    if (!g_menu_bg_loaded) {
+        unpack_menu_bg_rgba(g_menu_bg);
+        g_menu_bg_loaded = true;
+    }
+}
 
 typedef enum {
     APP_STATE_MENU,
@@ -689,102 +701,87 @@ static bool cb_environment(unsigned cmd, void *data) {
 }
 
 static void render_menu(u32* fb, u32 stride) {
-    for (int y = 0; y < SCREEN_H; y++) {
-        for (int x = 0; x < SCREEN_W; x++) {
-            u8 b = 20 + (y * 30 / SCREEN_H);
-            fb[y * stride + x] = (0xFF << 24) | (b << 16) | (10 << 8) | 10;
-        }
-    }
-
-    draw_text(fb, stride, 260, 60, "POWER RANGERS: THE MOVIE", 0xFF00D7FF, 4);
-    draw_text(fb, stride, 430, 115, "Nintendo Switch Online Netplay", 0xFFFFFFFF, 2);
+    init_menu_bg();
+    memcpy(fb, g_menu_bg, SCREEN_W * SCREEN_H * sizeof(u32));
 
     if (g_app_state == APP_STATE_MENU) {
         const char* options[3] = {
-            "1. JOGAR LOCAL (1P / 2P no mesmo console)",
+            "1. JOGAR LOCAL (1P / 2P)",
             "2. CRIAR SALA (Host / Jogador 1)",
             "3. CONECTAR NO HOST (Jogador 2)"
         };
 
         for (int i = 0; i < 3; i++) {
-            int y = 190 + i * 60;
-            u32 color = (g_menu_selection == i) ? 0xFF00FF55 : 0xFFCCCCCC;
+            int y = 270 + i * 46;
+            u32 color = (g_menu_selection == i) ? 0xFF00FF55 : 0xFFFFFFFF;
             int scale = (g_menu_selection == i) ? 3 : 2;
 
             if (g_menu_selection == i) {
-                draw_text(fb, stride, 140, y, ">", 0xFF00FF55, scale);
+                draw_text(fb, stride, 305, y, ">", 0xFF00FF55, scale);
             }
-            draw_text(fb, stride, 180, y, options[i], color, scale);
+            draw_text(fb, stride, 345, y, options[i], color, scale);
         }
 
-        draw_text(fb, stride, 180, 390, "IP DO HOST:", 0xFF00D7FF, 3);
+        draw_text(fb, stride, 520, 420, "IP DO HOST:", 0xFF00D7FF, 2);
 
-        int start_x = 420;
+        int start_x = 440;
         for (int o = 0; o < 4; o++) {
             char oct_str[16];
             snprintf(oct_str, sizeof(oct_str), "%d", g_ip_octets[o]);
             
             bool is_active = (g_menu_selection == 2 && g_ip_edit_index == o);
-            u32 oct_color = is_active ? 0xFF00FF00 : ((g_menu_selection == 2) ? 0xFFFFFFFF : 0xFF888888);
+            u32 oct_color = is_active ? 0xFF00FF00 : ((g_menu_selection == 2) ? 0xFFFFFFFF : 0xFFCCCCCC);
 
             if (is_active) {
-                draw_text(fb, stride, start_x - 12, 390, "[", 0xFF00FF00, 3);
+                draw_text(fb, stride, start_x - 14, 450, "[", 0xFF00FF00, 3);
             }
-            draw_text(fb, stride, start_x, 390, oct_str, oct_color, 3);
+            draw_text(fb, stride, start_x, 450, oct_str, oct_color, 3);
             int len = strlen(oct_str);
             if (is_active) {
-                draw_text(fb, stride, start_x + len * 24, 390, "]", 0xFF00FF00, 3);
+                draw_text(fb, stride, start_x + len * 24, 450, "]", 0xFF00FF00, 3);
             }
 
             start_x += (len * 24) + 16;
             if (o < 3) {
-                draw_text(fb, stride, start_x, 390, ".", 0xFF888888, 3);
-                start_x += 24;
+                draw_text(fb, stride, start_x, 450, ".", 0xFF888888, 3);
+                start_x += 20;
             }
         }
 
         if (g_auto_discovered) {
             char disco_buf[128];
-            snprintf(disco_buf, sizeof(disco_buf), "HOST DETECTADO NA REDE: %s", g_discovered_host_ip);
-            draw_text(fb, stride, 180, 445, disco_buf, 0xFF00FF55, 2);
+            snprintf(disco_buf, sizeof(disco_buf), "HOST DETECTADO: %s", g_discovered_host_ip);
+            draw_text(fb, stride, 430, 495, disco_buf, 0xFF00FF55, 2);
         }
 
-        if (g_menu_selection == 2) {
-            draw_text(fb, stride, 180, 490, "SEGURE X / Y: Aumentar / Diminuir Rapido (+/-)", 0xFF00FFFF, 2);
-            draw_text(fb, stride, 180, 525, "L / R (ou D-Pad Esq/Dir): Mudar Octeto", 0xFF00D7FF, 2);
-            draw_text(fb, stride, 180, 560, "ZR / ZL: Pulo Rapido (+10 / -10)", 0xFFFFAA00, 2);
-        } else {
-            draw_text(fb, stride, 180, 510, g_status_msg, 0xFFE0E0E0, 2);
-        }
-
-        draw_text(fb, stride, 220, 640, "D-Pad: Mover  |  A: Entrar  |  ZL: Tela Cheia", 0xFF888888, 2);
+        // Footer Help Bar (Y: 600)
+        draw_text(fb, stride, 380, 600, "+ NAVEGAR    (A) SELECIONAR    (B) VOLTAR", 0xFF00D7FF, 2);
     } 
     else if (g_app_state == APP_STATE_SEARCHING) {
         const char* spinners[] = { "|", "/", "-", "\\" };
         const char* spin = spinners[(g_anim_counter / 12) % 4];
 
         if (g_net_mode == NET_MODE_HOST) {
-            draw_text(fb, stride, 180, 230, "[ SALA ABERTA COMO HOST (PLAYER 1) ]", 0xFF00FF00, 3);
-            draw_text(fb, stride, 220, 310, "Transmitindo sala no Wi-Fi...", 0xFF00D7FF, 3);
-            draw_text(fb, stride, 220, 360, "PORTA UDP: 5555", 0xFFFFFFFF, 2);
+            draw_text(fb, stride, 350, 270, "[ SALA ABERTA COMO HOST ]", 0xFF00FF00, 3);
+            draw_text(fb, stride, 370, 330, "Transmitindo sala no Wi-Fi / Porta 5555...", 0xFF00D7FF, 2);
 
             char wait_text[128];
-            snprintf(wait_text, sizeof(wait_text), "Aguardando Player 2 conectar... %s", spin);
-            draw_text(fb, stride, 220, 420, wait_text, 0xFF00FFFF, 3);
-            draw_text(fb, stride, 220, 480, "No outro aparelho: escolha OPCAO 3 e aperte A!", 0xFFFFFFFF, 2);
+            snprintf(wait_text, sizeof(wait_text), "Aguardando Player 2... %s", spin);
+            draw_text(fb, stride, 430, 390, wait_text, 0xFF00FFFF, 3);
+            draw_text(fb, stride, 350, 450, "No outro aparelho: escolha OPCAO 3 e conecte!", 0xFFFFFFFF, 2);
         } else {
-            draw_text(fb, stride, 180, 230, "[ CONECTANDO AO HOST ]", 0xFF00D7FF, 3);
+            draw_text(fb, stride, 380, 270, "[ CONECTANDO AO HOST ]", 0xFF00D7FF, 3);
             char target_text[128];
             snprintf(target_text, sizeof(target_text), "DESTINO: %s:5555", g_host_ip_str);
-            draw_text(fb, stride, 220, 310, target_text, 0xFF00FF00, 3);
+            draw_text(fb, stride, 420, 330, target_text, 0xFF00FF00, 3);
 
             char wait_text[128];
-            snprintf(wait_text, sizeof(wait_text), "Conectando ao Host %s... %s", g_host_ip_str, spin);
-            draw_text(fb, stride, 220, 380, wait_text, 0xFF00FFFF, 3);
-            draw_text(fb, stride, 220, 460, "Certifique-se que o Host escolheu OPCAO 2!", 0xFFFFFFFF, 2);
+            snprintf(wait_text, sizeof(wait_text), "Enviando sinal... %s", spin);
+            draw_text(fb, stride, 470, 390, wait_text, 0xFF00FFFF, 3);
+            draw_text(fb, stride, 350, 450, "Certifique-se que o Host escolheu OPCAO 2!", 0xFFFFFFFF, 2);
         }
 
-        draw_text(fb, stride, 480, 620, "Pressione B para Cancelar", 0xFFFF4444, 2);
+        draw_text(fb, stride, 460, 600, "(B) CANCELAR BUSCA", 0xFFFF4444, 2);
     }
 }
 

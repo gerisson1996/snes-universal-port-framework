@@ -29,6 +29,18 @@
 #include "libretro.h"
 #include "embedded_rom.h"
 
+#include "menu_bg_data.h"
+
+static uint16_t g_menu_bg[960 * 448];
+static bool g_menu_bg_loaded = false;
+
+static void init_menu_bg(void) {
+    if (!g_menu_bg_loaded) {
+        unpack_menu_bg_565(g_menu_bg);
+        g_menu_bg_loaded = true;
+    }
+}
+
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "snesport", __VA_ARGS__)
 
 #define BUF_H 448
@@ -669,22 +681,13 @@ static void draw_text(int x, int y, const char* str, uint16_t col, int scale) {
 }
 
 static void draw_menu(void) {
-    // Dark animated background gradient
-    for (int y = 0; y < g_bh; y++) {
-        uint8_t b = 20 + (y * 30 / g_bh);
-        uint16_t bg = RGB565(10, 10, b);
-        uint16_t* row = g_px + y * g_stride;
-        for (int x = 0; x < g_bw; x++) row[x] = bg;
-    }
+    init_menu_bg();
+    memcpy(g_px, g_menu_bg, 960 * 448 * sizeof(uint16_t));
 
-    uint16_t gold = RGB565(255, 215, 0);
     uint16_t cyan = RGB565(0, 215, 255);
     uint16_t green = RGB565(0, 255, 100);
     uint16_t white = RGB565(255, 255, 255);
-    uint16_t gray = RGB565(150, 150, 150);
-
-    draw_text(180, 25, "POWER RANGERS: THE MOVIE", gold, 3);
-    draw_text(240, 55, "Android Native Online Netplay (Cross-Play)", white, 2);
+    uint16_t gray = RGB565(180, 180, 180);
 
     if (g_app_state == APP_STATE_MENU) {
         const char* options[3] = {
@@ -694,20 +697,18 @@ static void draw_menu(void) {
         };
 
         for (int i = 0; i < 3; i++) {
-            int y = 100 + i * 45;
-            uint16_t color = (g_menu_selection == i) ? green : gray;
-            int scale = (g_menu_selection == i) ? 2 : 2;
+            int y = 170 + i * 28;
+            uint16_t color = (g_menu_selection == i) ? green : white;
 
             if (g_menu_selection == i) {
-                draw_text(140, y, ">", green, scale);
-                fill_rect(160, y - 4, 450, 26, green, 4);
+                draw_text(250, y, ">", green, 2);
             }
-            draw_text(170, y, options[i], color, scale);
+            draw_text(275, y, options[i], color, 2);
         }
 
-        draw_text(170, 245, "IP DO HOST:", cyan, 2);
+        draw_text(400, 260, "IP DO HOST:", cyan, 2);
 
-        int start_x = 310;
+        int start_x = 340;
         for (int o = 0; o < 4; o++) {
             char oct_str[16];
             snprintf(oct_str, sizeof(oct_str), "%d", g_ip_octets[o]);
@@ -716,76 +717,77 @@ static void draw_menu(void) {
             uint16_t oct_color = is_active ? green : ((g_menu_selection == 2) ? white : gray);
 
             if (is_active) {
-                draw_text(start_x - 10, 245, "[", green, 2);
+                draw_text(start_x - 10, 280, "[", green, 2);
             }
-            draw_text(start_x, 245, oct_str, oct_color, 2);
+            draw_text(start_x, 280, oct_str, oct_color, 2);
             int len = strlen(oct_str);
             if (is_active) {
-                draw_text(start_x + len * 16, 245, "]", green, 2);
+                draw_text(start_x + len * 16, 280, "]", green, 2);
             }
 
             start_x += (len * 16) + 12;
             if (o < 3) {
-                draw_text(start_x, 245, ".", gray, 2);
+                draw_text(start_x, 280, ".", gray, 2);
                 start_x += 16;
             }
         }
 
         // On-screen touch buttons for IP adjust
         if (g_menu_selection == 2) {
-            fill_rect(170, 280, 80, 32, cyan, 12);
-            draw_text(195, 288, "-10", white, 2);
+            fill_rect(240, 310, 70, 26, cyan, 12);
+            draw_text(260, 316, "-10", white, 1);
 
-            fill_rect(260, 280, 60, 32, cyan, 12);
-            draw_text(285, 288, "-1", white, 2);
+            fill_rect(320, 310, 50, 26, cyan, 12);
+            draw_text(338, 316, "-1", white, 1);
 
-            fill_rect(330, 280, 60, 32, cyan, 12);
-            draw_text(355, 288, "+1", white, 2);
+            fill_rect(380, 310, 50, 26, cyan, 12);
+            draw_text(398, 316, "+1", white, 1);
 
-            fill_rect(400, 280, 80, 32, cyan, 12);
-            draw_text(425, 288, "+10", white, 2);
+            fill_rect(440, 310, 70, 26, cyan, 12);
+            draw_text(460, 316, "+10", white, 1);
 
-            fill_rect(490, 280, 90, 32, cyan, 12);
-            draw_text(505, 288, "OCTETO", white, 2);
+            fill_rect(520, 310, 90, 26, cyan, 12);
+            draw_text(535, 316, "OCTETO", white, 1);
         }
 
         if (g_auto_discovered) {
             char disco_buf[128];
-            snprintf(disco_buf, sizeof(disco_buf), "HOST DETECTADO NA REDE: %s", g_discovered_host_ip);
-            draw_text(170, 325, disco_buf, green, 2);
+            snprintf(disco_buf, sizeof(disco_buf), "HOST DETECTADO: %s", g_discovered_host_ip);
+            draw_text(310, 310, disco_buf, green, 1);
         }
 
-        fill_rect(170, 365, 300, 40, green, 14);
-        draw_text(200, 376, "INICIAR / CONECTAR", white, 2);
+        fill_rect(360, 345, 240, 32, green, 14);
+        draw_text(390, 353, "INICIAR / CONECTAR", white, 2);
 
-        draw_text(170, 420, "Toque na opcao ou use controle para navegar", gray, 1);
+        // Footer Help Bar (Y: 395)
+        draw_text(300, 395, "D-Pad: Mover  |  A: Entrar  |  Toque na Tela", cyan, 1);
     } 
     else if (g_app_state == APP_STATE_SEARCHING) {
         const char* spinners[] = { "|", "/", "-", "\\" };
         const char* spin = spinners[(g_anim_counter / 12) % 4];
 
         if (g_net_mode == NET_MODE_HOST) {
-            draw_text(170, 140, "[ SALA ABERTA COMO HOST (PLAYER 1) ]", green, 2);
-            draw_text(170, 180, "Transmitindo sala no Wi-Fi / Porta 5555...", cyan, 2);
+            draw_text(270, 170, "[ SALA ABERTA COMO HOST ]", green, 2);
+            draw_text(260, 210, "Transmitindo sala no Wi-Fi / Porta 5555...", cyan, 1);
 
             char wait_text[128];
-            snprintf(wait_text, sizeof(wait_text), "Aguardando Player 2 conectar... %s", spin);
-            draw_text(170, 230, wait_text, cyan, 2);
-            draw_text(170, 270, "No outro aparelho: escolha OPCAO 3 e conecte!", white, 2);
+            snprintf(wait_text, sizeof(wait_text), "Aguardando Player 2... %s", spin);
+            draw_text(330, 250, wait_text, cyan, 2);
+            draw_text(260, 290, "No outro aparelho: escolha OPCAO 3 e conecte!", white, 1);
         } else {
-            draw_text(170, 140, "[ CONECTANDO AO HOST ]", cyan, 2);
+            draw_text(290, 170, "[ CONECTANDO AO HOST ]", cyan, 2);
             char target_text[128];
             snprintf(target_text, sizeof(target_text), "DESTINO: %s:5555", g_host_ip_str);
-            draw_text(170, 180, target_text, green, 2);
+            draw_text(330, 210, target_text, green, 2);
 
             char wait_text[128];
-            snprintf(wait_text, sizeof(wait_text), "Enviando sinal para %s... %s", g_host_ip_str, spin);
-            draw_text(170, 230, wait_text, cyan, 2);
-            draw_text(170, 270, "Certifique-se que o Host escolheu OPCAO 2!", white, 2);
+            snprintf(wait_text, sizeof(wait_text), "Enviando sinal... %s", spin);
+            draw_text(360, 250, wait_text, cyan, 2);
+            draw_text(260, 290, "Certifique-se que o Host escolheu OPCAO 2!", white, 1);
         }
 
-        fill_rect(170, 350, 180, 36, RGB565(220, 40, 60), 16);
-        draw_text(210, 360, "CANCELAR", white, 2);
+        fill_rect(390, 340, 180, 32, RGB565(220, 40, 60), 16);
+        draw_text(440, 348, "CANCELAR", white, 2);
     }
 }
 
